@@ -1,6 +1,5 @@
 import { fractalNoise2D } from './noise';
 import { randomAt } from './random';
-import { GRID_SPACING } from './settings';
 import type { Params, Scene, SceneLink, SceneNode } from './types';
 
 /** How fast the noise changes across the grid. Lower means smoother waves. */
@@ -21,13 +20,13 @@ export const nodeId = (col: number, row: number) => `${col},${row}`;
  * adds links.
  */
 export function generate(params: Params): Scene {
-  const { columns, rows, density, displacement, seed } = params;
+  const { columns, rows, density, displacement, seed, gapX, gapY } = params;
 
   const nodes: SceneNode[] = [];
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < columns; col++) {
-      const gx = col * GRID_SPACING;
-      const gy = row * GRID_SPACING;
+      const gx = col * gapX;
+      const gy = row * gapY;
       const dx = clamp1(fractalNoise2D(seed, col * NOISE_SCALE, row * NOISE_SCALE, 0) * NOISE_GAIN);
       const dy = clamp1(fractalNoise2D(seed, col * NOISE_SCALE, row * NOISE_SCALE, 1) * NOISE_GAIN);
       nodes.push({
@@ -43,12 +42,25 @@ export function generate(params: Params): Scene {
   }
 
   const candidates: (SceneLink & { priority: number })[] = [];
-  const add = (kind: SceneLink['kind'], code: number, c1: number, r1: number, c2: number, r2: number, col: number, row: number) => {
+  const add = (
+    kind: SceneLink['kind'],
+    code: number,
+    c1: number,
+    r1: number,
+    c2: number,
+    r2: number,
+    col: number,
+    row: number,
+  ) => {
+    // Sideways links leave sideways, up/down links leave up/down. Diagonals pick
+    // one or the other from the seed. Only elbow and curved lines use this.
+    const bend = kind === 'h' ? 'h' : kind === 'v' ? 'v' : randomAt(seed, 5, col, row) < 0.5 ? 'h' : 'v';
     candidates.push({
       id: `${nodeId(c1, r1)}-${nodeId(c2, r2)}`,
       from: nodeId(c1, r1),
       to: nodeId(c2, r2),
       kind,
+      bend,
       priority: randomAt(seed, 2, code, col, row),
     });
   };
@@ -71,7 +83,7 @@ export function generate(params: Params): Scene {
   const chosen = new Set(ranked.map((r) => r.index));
   const links: SceneLink[] = candidates
     .filter((_, index) => chosen.has(index))
-    .map(({ id, from, to, kind }) => ({ id, from, to, kind }));
+    .map(({ id, from, to, kind, bend }) => ({ id, from, to, kind, bend }));
 
   return { nodes, links, titles: [] };
 }
