@@ -150,7 +150,7 @@ describe('fill patterns', () => {
       ]);
     expect(ends.length).toBe(scene.links.length * 2);
     for (const e of ends) {
-      const nearest = Math.min(...scene.nodes.map((n) => Math.hypot(e.x - n.x - 5, e.y - n.y - 5)));
+      const nearest = Math.min(...scene.nodes.map((n) => Math.hypot(e.x - n.x - 10, e.y - n.y - 10)));
       // Node edge at 5, plus half a round-capped line.
       expect(nearest).toBeCloseTo(5.5, 1);
     }

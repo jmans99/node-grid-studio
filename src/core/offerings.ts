@@ -28,6 +28,7 @@ export function defaultTitleSettings(): TitleSettings {
   return {
     names: 'short',
     wrap: false,
+    wrapAfter: 18,
     makeRoom: 'remove',
     keepCategories: false,
     font: 'Manrope',

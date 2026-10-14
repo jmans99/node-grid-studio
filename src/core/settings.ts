@@ -29,6 +29,7 @@ export const LIMITS = {
   spread: { min: 0, max: 3, step: 1 },
   includedSpread: { min: 0, max: 1, step: 0.01 },
   titleSize: { min: 2, max: 14, step: 0.1 },
+  wrapAfter: { min: 10, max: 40, step: 1 },
   leadScale: { min: 1, max: 2, step: 0.05 },
   titlePadding: { min: 0, max: 8, step: 0.1 },
   includedTint: { min: 0, max: 1, step: 0.01 },

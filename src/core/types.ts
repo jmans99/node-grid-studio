@@ -117,8 +117,10 @@ export type MakeRoom = 'remove' | 'push';
 /** How offerings appear as title shapes on the grid. */
 export interface TitleSettings {
   names: 'short' | 'full';
-  /** Wrap titles of two or more words onto two lines; the shape is then two rows tall. */
+  /** Wrap long titles of two or more words onto two lines; the shape is then two rows tall. */
   wrap: boolean;
+  /** Only titles longer than this many characters are wrapped. */
+  wrapAfter: number;
   /** Remove the nodes under a title, or push the grid apart around it. */
   makeRoom: MakeRoom;
   /** Place offerings of the same category near each other. */

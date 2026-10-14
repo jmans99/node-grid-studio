@@ -30,7 +30,7 @@ function paint(markup: string, attrs: string): string {
 /**
  * Work out the canvas and how the scene sits on it.
  *
- * "Fit pattern": the canvas is the pattern plus the margin, at scale 1.
+ * "Fit pattern": the canvas is the pattern plus one node size of edge and the margin, at scale 1.
  * Any other canvas: the pattern is scaled to fit inside the margin, and centred.
  */
 export function measure(scene: Scene, style: Style): Measure {
@@ -71,8 +71,10 @@ export function measure(scene: Scene, style: Style): Measure {
   let outH: number;
   let scale: number;
   if (preset === 'fit') {
-    outW = boxW + margin * 2;
-    outH = boxH + margin * 2;
+    // A node's width of breathing room on every side, so nothing touches the edge, plus the margin.
+    const edge = style.nodeSize + margin;
+    outW = boxW + edge * 2;
+    outH = boxH + edge * 2;
     scale = 1;
   } else {
     outW = width;

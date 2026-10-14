@@ -91,10 +91,10 @@ describe('generate', () => {
 });
 
 describe('render', () => {
-  it('fits a 150 x 110 viewBox at the defaults', () => {
+  it('fits a 160 x 120 viewBox at the defaults (the nodes plus one node size of edge)', () => {
     const m = measure(generate(params), style);
-    expect([m.width, m.height]).toEqual([150, 110]);
-    expect(render(generate(params), style)).toContain('viewBox="0 0 150 110"');
+    expect([m.width, m.height]).toEqual([160, 120]);
+    expect(render(generate(params), style)).toContain('viewBox="0 0 160 120"');
   });
 
   it('uses no patterns or filters', () => {

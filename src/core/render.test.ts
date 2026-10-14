@@ -27,7 +27,7 @@ describe('colour helpers', () => {
 
 describe('background modes', () => {
   it('paper and navy use the brand backgrounds', () => {
-    expect(draw({ backgroundMode: 'paper' })).toContain(`id="background" width="150" height="110" fill="${BRAND.offWhite}"`);
+    expect(draw({ backgroundMode: 'paper' })).toContain(`id="background" width="160" height="120" fill="${BRAND.offWhite}"`);
     expect(draw({ backgroundMode: 'navy' })).toContain(`fill="${BRAND.navy}"/>`);
   });
 
@@ -216,7 +216,7 @@ describe('lines', () => {
         { x: +m[3], y: +m[4] },
       ]);
       expect(ends.length).toBe(scene.links.length * 2);
-      const centres = scene.nodes.map((n) => ({ x: n.x + 5, y: n.y + 5 }));
+      const centres = scene.nodes.map((n) => ({ x: n.x + 10, y: n.y + 10 }));
       for (const e of ends) {
         const nearest = Math.min(...centres.map((c) => Math.hypot(e.x - c.x, e.y - c.y)));
         // 5 - 0.5 (middle of the 1-wide ring) + 0.5 (round cap) = 5
@@ -229,7 +229,7 @@ describe('lines', () => {
       const first = scene.links[0];
       const a = scene.nodes.find((n) => n.id === first.from)!;
       const b = scene.nodes.find((n) => n.id === first.to)!;
-      expect(draw({})).toContain(`<line x1="${a.x + 5}" y1="${a.y + 5}" x2="${b.x + 5}" y2="${b.y + 5}"/>`);
+      expect(draw({})).toContain(`<line x1="${a.x + 10}" y1="${a.y + 10}" x2="${b.x + 10}" y2="${b.y + 10}"/>`);
     });
   });
 
@@ -239,11 +239,11 @@ describe('lines', () => {
 });
 
 describe('canvas', () => {
-  it('fit pattern keeps the 150 x 110 default, and adds the margin on each side', () => {
-    expect(measure(generate(params), baseStyle)).toMatchObject({ width: 150, height: 110, scale: 1 });
+  it('fit pattern adds one node size of edge, plus the margin, on each side', () => {
+    expect(measure(generate(params), baseStyle)).toMatchObject({ width: 160, height: 120, scale: 1 });
     expect(measure(generate(params), { ...baseStyle, ...withCanvas({ margin: 10 }) })).toMatchObject({
-      width: 170,
-      height: 130,
+      width: 180,
+      height: 140,
     });
   });
 

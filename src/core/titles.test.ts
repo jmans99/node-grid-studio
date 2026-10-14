@@ -59,6 +59,14 @@ describe('title shapes', () => {
     expect(get(reqs({ names: 'full' }), 'policy-modelling').lines).toEqual(['Predictive policy and planning modelling']);
   });
 
+  it('only wrap titles longer than the set number of characters', () => {
+    // "Real-time monitoring" is 20 characters; "Funding screening" is 17.
+    const r = reqs({ wrap: true, wrapAfter: 18 });
+    expect(get(r, 'real-time-monitoring').lines.length).toBe(2);
+    expect(get(r, 'funding-screening').lines.length).toBe(1);
+    expect(get(reqs({ wrap: true, wrapAfter: 25 }), 'real-time-monitoring').lines.length).toBe(1);
+  });
+
   it('wrap to two lines and two rows', () => {
     const r = get(reqs({ wrap: true, names: 'full' }), 'policy-modelling');
     expect(r.lines.length).toBe(2);

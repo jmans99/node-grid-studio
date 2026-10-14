@@ -46,6 +46,15 @@ export function TitlesPanel({ value, onChange }: Props) {
     <>
       <Segmented label="Names" value={value.names} options={NAMES} onChange={(v) => set('names', v)} />
       <Toggle label="Wrap titles to two lines" checked={value.wrap} onChange={(v) => set('wrap', v)} />
+      {value.wrap && (
+        <Slider
+          label="Wrap titles longer than"
+          value={value.wrapAfter}
+          {...LIMITS.wrapAfter}
+          unit=" characters"
+          onChange={(v) => set('wrapAfter', v)}
+        />
+      )}
       <Segmented label="Make room" value={value.makeRoom} options={ROOM} onChange={(v) => set('makeRoom', v)} />
       <p className="hint">
         {value.makeRoom === 'remove'

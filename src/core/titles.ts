@@ -53,7 +53,7 @@ export function titleRequests(offerings: ResolvedOffering[], t: TitleSettings, c
     .map((o) => {
       const text = t.names === 'short' ? o.short : o.name;
       const fontSize = t.size * (o.state === 'lead' ? t.leadScale : 1);
-      const lines = t.wrap ? wrapTwoLines(text, t.font, t.weight, fontSize) : [text];
+      const lines = t.wrap && text.length > t.wrapAfter ? wrapTwoLines(text, t.font, t.weight, fontSize) : [text];
       const textW = Math.max(...lines.map((l) => measureText(l, t.font, t.weight, fontSize)));
       const height = Math.max(lines.length * fontSize * 1.25 + t.padding * 2, ctx.nodeSize * 2);
       const halfH = height / 2;
