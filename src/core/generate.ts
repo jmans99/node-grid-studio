@@ -1,6 +1,8 @@
 import { fractalNoise2D } from './noise';
 import { hashInts, randomAt } from './random';
-import type { Params, Scene, SceneLink, SceneNode } from './types';
+import { resolveOfferings } from './offerings';
+import { placeTitles, spreadColors } from './titles';
+import type { OfferingsSettings, Params, Scene, SceneLink, SceneNode } from './types';
 
 /** How fast the noise changes across the grid. Lower means smoother waves. */
 const NOISE_SCALE = 0.3;
@@ -18,8 +20,10 @@ export const nodeId = (col: number, row: number) => `${col},${row}`;
  * the seed, so two diagonals can never cross. Density then keeps the first
  * share of those links, ranked by a seeded priority. Raising density only ever
  * adds links.
+ *
+ * `offerings` adds the title shapes and the colour spread around them.
  */
-export function generate(params: Params): Scene {
+export function generate(params: Params, offerings?: OfferingsSettings): Scene {
   const { columns, rows, density, displacement, seed, gapX, gapY } = params;
 
   const nodes: SceneNode[] = [];
@@ -87,7 +91,11 @@ export function generate(params: Params): Scene {
     .filter((_, index) => chosen.has(index))
     .map(({ id, from, to, kind, bend }) => ({ id, from, to, kind, bend }));
 
-  return { nodes, links, titles: [] };
+  // Offerings: each active one becomes a title shape, and its colour spreads to nearby nodes and links.
+  const titles = offerings ? placeTitles(nodes, resolveOfferings(offerings), seed, columns, rows) : [];
+  if (offerings) spreadColors(nodes, links, titles, offerings.spread);
+
+  return { nodes, links, titles, gapX, gapY };
 }
 
 function clamp1(v: number): number {

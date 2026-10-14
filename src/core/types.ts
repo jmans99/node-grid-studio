@@ -86,9 +86,41 @@ export interface Style {
   canvas: CanvasSettings;
 }
 
+export type OfferingState = 'off' | 'included' | 'lead';
+
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+  /** Added in the app rather than in the data file. */
+  custom?: boolean;
+}
+
+export interface Offering {
+  id: string;
+  categoryId: string;
+  name: string;
+  short: string;
+  state: OfferingState;
+  /** A colour set by hand, or null to use the category shade. */
+  color: string | null;
+  /** Added in the app rather than in the data file. */
+  custom?: boolean;
+}
+
+export interface OfferingsSettings {
+  categories: Category[];
+  items: Offering[];
+  /** 0 to 1: how far offering colours move from their category colour. */
+  shadeStrength: number;
+  /** 0 to 3: nodes and links this many steps from a title shape take its colour. */
+  spread: number;
+}
+
 export interface Settings {
   params: Params;
   style: Style;
+  offerings: OfferingsSettings;
 }
 
 export interface SceneNode {
@@ -105,6 +137,8 @@ export interface SceneNode {
   seed: number;
   /** 0 to 1, fixed per node. Picks which nodes get the pattern when only some do. */
   pick: number;
+  /** Offering colour, when the node is near a title shape. */
+  color?: string;
 }
 
 export interface SceneLink {
@@ -116,20 +150,29 @@ export interface SceneLink {
   kind: 'h' | 'v' | 'd';
   /** For elbow and curved lines: which way the line leaves the first node. */
   bend: 'h' | 'v';
+  /** Offering colour, when the link is near a title shape. */
+  color?: string;
 }
 
-/** Placeholder for the offering title shapes added in phase 4. */
+/** An offering on the grid. For now a simple placeholder that sits on one node. */
 export interface TitleShape {
+  /** The offering id. */
   id: string;
+  /** The node it replaces. */
+  nodeId: string;
+  state: Exclude<OfferingState, 'off'>;
+  color: string;
+  text: string;
+  /** Centre, in units. */
   x: number;
   y: number;
-  width: number;
-  height: number;
-  text: string;
 }
 
 export interface Scene {
   nodes: SceneNode[];
   links: SceneLink[];
   titles: TitleShape[];
+  /** Grid spacing, in units. */
+  gapX: number;
+  gapY: number;
 }

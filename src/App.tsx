@@ -20,6 +20,7 @@ import type {
 import { copyText, downloadBlob, downloadText } from './lib/browser';
 import { svgToPng } from './lib/png';
 import { ColorField } from './ui/ColorField';
+import { OfferingsPanel } from './ui/OfferingsPanel';
 import { NumberField } from './ui/NumberField';
 import { Section } from './ui/Section';
 import { Segmented } from './ui/Segmented';
@@ -73,11 +74,11 @@ export default function App() {
   const [pngScale, setPngScale] = useState<(typeof PNG_SCALES)[number]>(2);
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef<number>(0);
-  const { params, style } = settings;
+  const { params, style, offerings } = settings;
 
   // generate() only re-runs when a layout setting changes. render() is the one
   // drawing function, used by the preview and by every export.
-  const scene = useMemo(() => generate(params), [params]);
+  const scene = useMemo(() => generate(params, offerings), [params, offerings]);
   const svg = useMemo(() => render(scene, style), [scene, style]);
   const size = useMemo(() => measure(scene, style), [scene, style]);
   const { palette, transparent } = resolvePalette(style);
@@ -181,6 +182,10 @@ export default function App() {
           <h1>Node Grid Studio</h1>
           <p>DI offerings visual</p>
         </header>
+
+        <Section title="Offerings">
+          <OfferingsPanel value={offerings} onChange={(o) => setSettings((s) => ({ ...s, offerings: o }))} />
+        </Section>
 
         <Section title="Nodes">
           <Slider label="Node size" value={style.nodeSize} {...LIMITS.nodeSize} onChange={(v) => setStyle('nodeSize', v)} />

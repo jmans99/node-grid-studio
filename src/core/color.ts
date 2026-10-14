@@ -27,3 +27,14 @@ export function mix(a: string, b: string, t: number): string {
 
 export const lighten = (hex: string, t: number) => mix(hex, '#FFFFFF', t);
 export const darken = (hex: string, t: number) => mix(hex, '#000000', t);
+
+/** Near-black or white, whichever reads better on this background. */
+export function readableOn(hex: string): string {
+  const h = normalizeHex(hex) ?? '#000000';
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.36 ? '#16171A' : '#FFFFFF';
+}

@@ -1,4 +1,5 @@
 import { DEFAULT_PALETTES, bluePalette } from '../brand';
+import { defaultOfferings } from './offerings';
 import type { CanvasPreset, Palette, Settings, Style } from './types';
 
 /** Slider ranges. The panel and any input checks read from here. */
@@ -24,6 +25,8 @@ export const LIMITS = {
   patternMix: { min: 0, max: 100, step: 1 },
   barWidth: { min: 0.5, max: 20, step: 0.1 },
   smoothness: { min: 0, max: 1, step: 0.01 },
+  shadeStrength: { min: 0, max: 1, step: 0.01 },
+  spread: { min: 0, max: 3, step: 1 },
   canvasSize: { min: 16, max: 8000, step: 1 },
 } as const;
 
@@ -75,6 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
     palettes: DEFAULT_PALETTES,
     canvas: { preset: 'fit', width: 1080, height: 1080, margin: 0 },
   },
+  offerings: defaultOfferings(),
 };
 
 /** The colours actually used to draw, after the background mode is applied. */
