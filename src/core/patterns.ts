@@ -96,6 +96,8 @@ function dotsPattern({ spec, c, density, size, scale, seed, color }: PatternInpu
 }
 
 function ringsPattern({ spec, c, density, size, scale, ringed }: PatternInput): string {
+  if (spec.shape === 'capsule') return '';
+  const shape = spec.shape;
   // Density 0 gives 1 ring, density 1 gives 7.
   const count = 1 + Math.round(density * 6);
   const step = spec.half / count;
@@ -107,7 +109,7 @@ function ringsPattern({ spec, c, density, size, scale, ringed }: PatternInput): 
     if (outer <= width / 2 + 0.01) break;
     rings.push(
       nodeMarkup({
-        shape: spec.shape,
+        shape,
         cx: c.x,
         cy: c.y,
         half: outer,

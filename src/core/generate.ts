@@ -1,8 +1,8 @@
 import { fractalNoise2D } from './noise';
 import { hashInts, randomAt } from './random';
 import { resolveOfferings } from './offerings';
-import { placeTitles, spreadColors } from './titles';
-import type { OfferingsSettings, Params, Scene, SceneLink, SceneNode } from './types';
+import { blueShade, buildTitles, planTitles, spreadColors, suggestGrid, titleRequests } from './titles';
+import type { OfferingsSettings, Params, Scene, SceneLink, SceneNode, TitleFit } from './types';
 
 /** How fast the noise changes across the grid. Lower means smoother waves. */
 const NOISE_SCALE = 0.3;
@@ -23,7 +23,18 @@ export const nodeId = (col: number, row: number) => `${col},${row}`;
  *
  * `offerings` adds the title shapes and the colour spread around them.
  */
-export function generate(params: Params, offerings?: OfferingsSettings): Scene {
+export interface GenerateContext {
+  /** Node radius in units: title shapes are sized to clear the nodes around them. */
+  nodeSize: number;
+  /** The blue-only background is on. */
+  blueMode: boolean;
+}
+
+export function generate(
+  params: Params,
+  offerings?: OfferingsSettings,
+  context: GenerateContext = { nodeSize: 5, blueMode: false },
+): Scene {
   const { columns, rows, density, displacement, seed, gapX, gapY } = params;
 
   const nodes: SceneNode[] = [];
@@ -91,11 +102,28 @@ export function generate(params: Params, offerings?: OfferingsSettings): Scene {
     .filter((_, index) => chosen.has(index))
     .map(({ id, from, to, kind, bend }) => ({ id, from, to, kind, bend }));
 
-  // Offerings: each active one becomes a title shape, and its colour spreads to nearby nodes and links.
-  const titles = offerings ? placeTitles(nodes, resolveOfferings(offerings), seed, columns, rows) : [];
-  if (offerings) spreadColors(nodes, links, titles, offerings.spread);
-
-  return { nodes, links, titles, gapX, gapY };
+  // Offerings: each active one becomes a title shape on the grid, and its colour
+  // spreads to the nodes and links around it.
+  if (!offerings) return { nodes, links, titles: [], gapX, gapY };
+  let resolved = resolveOfferings(offerings);
+  if (context.blueMode && !offerings.blueModeColors) {
+    resolved = resolved.map((o, i) => ({ ...o, resolvedColor: blueShade(i, resolved.length) }));
+  }
+  const t = offerings.titles;
+  const ctx = { nodeSize: context.nodeSize, gapX, gapY };
+  const requests = titleRequests(resolved, t, ctx);
+  const { placed, failed } = planTitles(requests, columns, rows, seed, t.keepCategories, t.positions);
+  const built = buildTitles(nodes, links, requests, placed, t, ctx);
+  spreadColors(nodes, built.links, built.titles, offerings.spread, offerings.includedSpread);
+  // Titles never overlap. When some do not fit, say so and suggest a grid that fits them all.
+  const fit: TitleFit | undefined = failed.length
+    ? {
+        placed: placed.size,
+        total: requests.length,
+        suggestion: suggestGrid(requests, columns, rows, seed, t.keepCategories, t.positions),
+      }
+    : undefined;
+  return { nodes, links: built.links, titles: built.titles, gapX, gapY, fit };
 }
 
 function clamp1(v: number): number {

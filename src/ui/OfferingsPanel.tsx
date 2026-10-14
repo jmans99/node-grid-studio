@@ -17,6 +17,7 @@ import {
 import { LIMITS } from '../core/settings';
 import type { OfferingState, OfferingsSettings } from '../core/types';
 import { Slider } from './Slider';
+import { Toggle } from './Toggle';
 
 const STATE_LABEL: Record<OfferingState, string> = { off: 'Off', included: 'Included', lead: 'Lead' };
 
@@ -153,6 +154,18 @@ export function OfferingsPanel({ value, onChange }: Props) {
       />
       <Slider label="Colour spread" value={value.spread} {...LIMITS.spread} onChange={(v) => onChange({ ...value, spread: v })} />
       <p className="hint">Nodes and links this many steps from a title shape take its colour. At 0 only the title shape is coloured.</p>
+      <Slider
+        label="Included spread strength"
+        value={value.includedSpread}
+        {...LIMITS.includedSpread}
+        onChange={(v) => onChange({ ...value, includedSpread: v })}
+      />
+      <p className="hint">Included offerings spread a lighter tint, so lead offerings stand out. At 1 they match lead.</p>
+      <Toggle
+        label="Offering colours in blue-only mode"
+        checked={value.blueModeColors}
+        onChange={(v) => onChange({ ...value, blueModeColors: v })}
+      />
 
       <AddOffering value={value} onChange={onChange} />
       <AddCategory value={value} onChange={onChange} />

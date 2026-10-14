@@ -1,6 +1,6 @@
 import { AUDIENCE_PRESETS, type AudiencePreset, CATEGORIES, SHADE_STRENGTH } from '../offerings';
 import { darken, lighten } from './color';
-import type { Category, Offering, OfferingState, OfferingsSettings } from './types';
+import type { Category, Offering, OfferingState, OfferingsSettings, TitleSettings } from './types';
 
 /** Starting offerings, built from the data file. Everything starts off. */
 export function defaultOfferings(): OfferingsSettings {
@@ -18,6 +18,28 @@ export function defaultOfferings(): OfferingsSettings {
     ),
     shadeStrength: SHADE_STRENGTH,
     spread: 1,
+    includedSpread: 0.5,
+    blueModeColors: true,
+    titles: defaultTitleSettings(),
+  };
+}
+
+export function defaultTitleSettings(): TitleSettings {
+  return {
+    names: 'short',
+    wrap: false,
+    makeRoom: 'remove',
+    keepCategories: false,
+    font: 'Manrope',
+    weight: 500,
+    size: 4.5,
+    leadScale: 1.2,
+    textColor: 'auto',
+    align: 'center',
+    padding: 2,
+    includedTint: 0.8,
+    includedOutline: false,
+    positions: {},
   };
 }
 

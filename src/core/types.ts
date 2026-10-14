@@ -108,6 +108,39 @@ export interface Offering {
   custom?: boolean;
 }
 
+export type TitleFont = 'Manrope' | 'Open Sans';
+export type TitleWeight = 300 | 400 | 500 | 600;
+export type TitleAlign = 'left' | 'center' | 'right';
+export type TitleTextColor = 'auto' | 'text' | 'offering';
+export type MakeRoom = 'remove' | 'push';
+
+/** How offerings appear as title shapes on the grid. */
+export interface TitleSettings {
+  names: 'short' | 'full';
+  /** Wrap titles of two or more words onto two lines; the shape is then two rows tall. */
+  wrap: boolean;
+  /** Remove the nodes under a title, or push the grid apart around it. */
+  makeRoom: MakeRoom;
+  /** Place offerings of the same category near each other. */
+  keepCategories: boolean;
+  font: TitleFont;
+  weight: TitleWeight;
+  /** Text size in units. */
+  size: number;
+  /** Lead titles use larger text: this many times the text size. */
+  leadScale: number;
+  textColor: TitleTextColor;
+  align: TitleAlign;
+  /** Space around the text, in units. */
+  padding: number;
+  /** 0 to 1: how pale the fill of an included title is. */
+  includedTint: number;
+  /** Draw a thin outline in the offering colour around included titles. */
+  includedOutline: boolean;
+  /** Titles dragged by hand: top-left grid cell of the title, by offering id. */
+  positions: Record<string, { col: number; row: number }>;
+}
+
 export interface OfferingsSettings {
   categories: Category[];
   items: Offering[];
@@ -115,6 +148,11 @@ export interface OfferingsSettings {
   shadeStrength: number;
   /** 0 to 3: nodes and links this many steps from a title shape take its colour. */
   spread: number;
+  /** 0 to 1: how strongly an included offering colours its spread. 1 is the same as lead. */
+  includedSpread: number;
+  /** In the blue-only background mode, keep offering colours (on) or use shades of UNICEF blue (off). */
+  blueModeColors: boolean;
+  titles: TitleSettings;
 }
 
 export interface Settings {
@@ -139,6 +177,8 @@ export interface SceneNode {
   pick: number;
   /** Offering colour, when the node is near a title shape. */
   color?: string;
+  /** Not drawn: a title shape sits in its place. Its position is where links aim. */
+  hidden?: boolean;
 }
 
 export interface SceneLink {
@@ -152,20 +192,50 @@ export interface SceneLink {
   bend: 'h' | 'v';
   /** Offering colour, when the link is near a title shape. */
   color?: string;
+  /** Set when an end attaches to a title shape: the title's id. */
+  titleFrom?: string;
+  titleTo?: string;
 }
 
-/** An offering on the grid. For now a simple placeholder that sits on one node. */
+/** An offering on the grid: a capsule holding its title. Sizes in units. */
 export interface TitleShape {
   /** The offering id. */
   id: string;
-  /** The node it replaces. */
-  nodeId: string;
+  categoryId: string;
   state: Exclude<OfferingState, 'off'>;
+  /** The offering colour. */
   color: string;
-  text: string;
-  /** Centre, in units. */
-  x: number;
-  y: number;
+  /** Fill of the capsule. */
+  fill: string;
+  /** Outline colour, if drawn. */
+  outline?: string;
+  /** One or two lines of text. */
+  lines: string[];
+  font: TitleFont;
+  weight: TitleWeight;
+  fontSize: number;
+  align: TitleAlign;
+  textColor: TitleTextColor;
+  /** Space between the text and the capsule's side. */
+  padX: number;
+  /** Centre and half size. */
+  cx: number;
+  cy: number;
+  halfW: number;
+  halfH: number;
+  /** Grid cells it takes: top-left cell and size. */
+  col: number;
+  row: number;
+  cols: number;
+  rows: number;
+}
+
+/** Whether every active offering found room on the grid. */
+export interface TitleFit {
+  placed: number;
+  total: number;
+  /** Smallest grid that fits them all, or null if none up to the largest grid does. */
+  suggestion: { columns: number; rows: number } | null;
 }
 
 export interface Scene {
@@ -175,4 +245,6 @@ export interface Scene {
   /** Grid spacing, in units. */
   gapX: number;
   gapY: number;
+  /** Only set when some titles did not fit. */
+  fit?: TitleFit;
 }

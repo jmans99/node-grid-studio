@@ -533,3 +533,24 @@ input[type='range'] {
   align-items: center;
   gap: 8px;
 }
+
+/* Shown when some titles do not fit on the grid */
+.fit-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px 12px;
+  padding: 10px 12px;
+  border: 1px solid #e6c98f;
+  border-radius: 6px;
+  background: #fdf6e7;
+}
+
+.fit-notice button {
+  flex: none;
+}
+
+.artboard {
+  touch-action: none;
+}

@@ -71,15 +71,22 @@ function polygon(points: Pt[]): string {
 
 /** A node outline: its shape, half-width and (for the rounded square) corner radius, in px. */
 export interface ShapeSpec {
-  shape: NodeShape;
-  /** Half the width. For the diamond and hexagon, the distance to a corner. */
+  /** A node shape, or 'capsule' for a title shape. */
+  shape: NodeShape | 'capsule';
+  /** Half the width. For the diamond and hexagon, the distance to a corner. For a capsule, half its height. */
   half: number;
+  /** Capsule only: half its width. */
+  halfW?: number;
   /** Corner radius of the rounded square. Ignored for other shapes. */
   corner: number;
 }
 
 /** Draw a shape outline exactly as described, with no outline inset. */
 export function shapeMarkup(spec: ShapeSpec, c: Pt): string {
+  if (spec.shape === 'capsule') {
+    const w = spec.halfW ?? spec.half;
+    return `<rect x="${fmt(c.x - w)}" y="${fmt(c.y - spec.half)}" width="${fmt(w * 2)}" height="${fmt(spec.half * 2)}" rx="${fmt(spec.half)}"/>`;
+  }
   return nodeMarkup({ shape: spec.shape, cx: c.x, cy: c.y, half: spec.half, corner: spec.corner, outline: 0 });
 }
 
@@ -88,6 +95,9 @@ export function shapeMarkup(spec: ShapeSpec, c: Pt): string {
  * negative). Matches how nodeMarkup pulls a shape in for its outline.
  */
 export function insetSpec(spec: ShapeSpec, d: number): ShapeSpec {
+  if (spec.shape === 'capsule') {
+    return { ...spec, half: Math.max(spec.half - d, 0.01), halfW: Math.max((spec.halfW ?? spec.half) - d, 0.01) };
+  }
   const step = spec.shape === 'diamond' ? d * Math.SQRT2 : spec.shape === 'hexagon' ? d / Math.cos(Math.PI / 6) : d;
   const half = Math.max(spec.half - step, 0.01);
   const corner = spec.shape === 'rounded' ? Math.max(Math.min(spec.corner, spec.half) - d, 0) : 0;
@@ -120,6 +130,11 @@ export function sdfNode(spec: ShapeSpec, c: Pt, p: Pt): number {
     case 'diamond':
       // A square turned 45 degrees.
       return sdBox((x + y) / Math.SQRT2, (y - x) / Math.SQRT2, h / Math.SQRT2);
+    case 'capsule': {
+      // A horizontal bar with fully rounded ends.
+      const reach = Math.max((spec.halfW ?? h) - h, 0);
+      return Math.hypot(Math.max(Math.abs(x) - reach, 0), y) - h;
+    }
     case 'hexagon': {
       // Corners point left and right; flat top and bottom.
       const apothem = (h * Math.sqrt(3)) / 2;
@@ -429,6 +444,9 @@ export interface LinkOptions {
   trimFrom?: ShapeSpec;
   /** Same for the last node. */
   trimTo?: ShapeSpec;
+  /** Centre of the outline at each end, when it is not the line's end point (a title shape). */
+  fromCentre?: Pt;
+  toCentre?: Pt;
   /** Fit dashes to this link. */
   dash?: Dash;
 }
@@ -443,10 +461,14 @@ export function linkMarkup(
   bend: 'h' | 'v',
   mode: LinePath,
   radius: number,
-  { trimFrom, trimTo, dash }: LinkOptions = {},
+  { trimFrom, trimTo, fromCentre, toCentre, dash }: LinkOptions = {},
 ): string {
   const route = linkSegments(a, b, bend, mode, radius);
-  const segs = trimPath(route, trimFrom ? { spec: trimFrom, c: a } : null, trimTo ? { spec: trimTo, c: b } : null);
+  const segs = trimPath(
+    route,
+    trimFrom ? { spec: trimFrom, c: fromCentre ?? a } : null,
+    trimTo ? { spec: trimTo, c: toCentre ?? b } : null,
+  );
   return segs && segs.length ? segmentsMarkup(segs, dash) : '';
 }
 

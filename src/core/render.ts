@@ -1,10 +1,11 @@
-import { lighten } from './color';
+import { darken, readableOn } from './color';
 import { escapeXml, fmt } from './format';
-import { type ShapeSpec, insetSpec, linkMarkup, nodeMarkup } from './geometry';
+import { type Pt, type ShapeSpec, insetSpec, linkMarkup, nodeMarkup } from './geometry';
 import { BAR_LIMIT, type JoinEnd, barMarkup } from './joins';
 import { patternMarkup } from './patterns';
+import { FONT_STACK, fontMetrics } from './text';
 import { resolvePalette } from './settings';
-import type { Scene, Style } from './types';
+import type { Palette, Scene, Style, TitleShape } from './types';
 
 export { escapeXml, fmt };
 
@@ -19,11 +20,6 @@ export interface Measure {
   offsetY: number;
   /** The pattern's own box, in px. It is centred with the margin around it. */
   pattern: { x: number; y: number; width: number; height: number };
-}
-
-/** Placeholder title shape: a pill over its node, reaching most of the way to the next node. In units. */
-export function titleSize(scene: Scene, style: Style): { halfW: number; halfH: number } {
-  return { halfW: style.nodeSize + scene.gapX * 0.4, halfH: style.nodeSize };
 }
 
 /** Add attributes to a single SVG element string, such as a colour that overrides its group. */
@@ -46,32 +42,27 @@ export function measure(scene: Scene, style: Style): Measure {
     offsetY: 0,
     pattern: { x: 0, y: 0, width: 0, height: 0 },
   };
-  if (!scene.nodes.length) return empty;
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const n of scene.nodes) {
-    minX = Math.min(minX, n.x);
-    minY = Math.min(minY, n.y);
-    maxX = Math.max(maxX, n.x);
-    maxY = Math.max(maxY, n.y);
-  }
   // One node radius around the node centres (or half a line, if that is wider).
   const pad = Math.max(style.nodeSize, style.lineWidth / 2);
-  let boxX = minX - pad;
-  let boxY = minY - pad;
-  let right = maxX + pad;
-  let bottom = maxY + pad;
+  let boxX = Infinity;
+  let boxY = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const n of scene.nodes) {
+    if (n.hidden) continue;
+    boxX = Math.min(boxX, n.x - pad);
+    boxY = Math.min(boxY, n.y - pad);
+    right = Math.max(right, n.x + pad);
+    bottom = Math.max(bottom, n.y + pad);
+  }
   // Title shapes can be wider than a node.
   for (const t of scene.titles) {
-    const { halfW, halfH } = titleSize(scene, style);
-    boxX = Math.min(boxX, t.x - halfW);
-    boxY = Math.min(boxY, t.y - halfH);
-    right = Math.max(right, t.x + halfW);
-    bottom = Math.max(bottom, t.y + halfH);
+    boxX = Math.min(boxX, t.cx - t.halfW);
+    boxY = Math.min(boxY, t.cy - t.halfH);
+    right = Math.max(right, t.cx + t.halfW);
+    bottom = Math.max(bottom, t.cy + t.halfH);
   }
+  if (!Number.isFinite(boxX)) return empty;
   const boxW = right - boxX;
   const boxH = bottom - boxY;
 
@@ -130,11 +121,31 @@ export function render(scene: Scene, style: Style): string {
   // A node is solid unless it has no fill (outline style) or it was given the pattern.
   const fillsShown = style.nodeStyle !== 'outline';
   const patterned = (pick: number) => fillsShown && style.fillPattern !== 'solid' && pick * 100 < style.patternMix;
-  // Title shapes replace their node. They are drawn on top, so links treat them as solid.
-  const titleNodes = new Set(scene.titles.map((t) => t.nodeId));
-  const solid = new Map(
-    scene.nodes.map((n) => [n.id, titleNodes.has(n.id) || (fillsShown && !patterned(n.pick))] as const),
+  const solid = new Map(scene.nodes.map((n) => [n.id, fillsShown && !patterned(n.pick)] as const));
+
+  // Title shapes, in px. A link to a title aims at the spot where its node was,
+  // kept inside the capsule, and stops at the capsule edge.
+  const titleBox = new Map(
+    scene.titles.map((t) => {
+      const c = { x: t.cx * k + m.offsetX, y: t.cy * k + m.offsetY };
+      const spec: ShapeSpec = { shape: 'capsule', half: t.halfH * k, halfW: t.halfW * k, corner: 0 };
+      return [t.id, { c, spec }] as const;
+    }),
   );
+  const aimAt = (p: Pt, titleId: string): Pt => {
+    const b = titleBox.get(titleId)!;
+    const reach = Math.max(b.spec.halfW! - b.spec.half, 0);
+    return {
+      x: Math.max(b.c.x - reach, Math.min(b.c.x + reach, p.x)),
+      y: Math.max(b.c.y - b.spec.half / 2, Math.min(b.c.y + b.spec.half / 2, p.y)),
+    };
+  };
+  const ends = (link: (typeof scene.links)[number]) => {
+    const a = at.get(link.from);
+    const b = at.get(link.to);
+    if (!a || !b) return null;
+    return { a: link.titleFrom ? aimAt(a, link.titleFrom) : a, b: link.titleTo ? aimAt(b, link.titleTo) : b };
+  };
 
   // ---- Links
   const links: string[] = [];
@@ -150,17 +161,21 @@ export function render(scene: Scene, style: Style): string {
     const hollowStop = insetSpec(innerSpec, round ? -lineWidth / 2 : 0);
     const solidStop = insetSpec(nodeSpec, Math.min(lineWidth / 2, half / 2));
     const stopAt = (id: string) => (solid.get(id) ? (style.dashed ? solidStop : undefined) : hollowStop);
+    // Title shapes are solid: a line runs in under them, or stops at the edge when dashed.
+    const titleStop = (titleId: string) =>
+      style.dashed ? insetSpec(titleBox.get(titleId)!.spec, Math.min(lineWidth / 2, half / 2)) : undefined;
     // Dashes are measured as they look on screen. Each link fits its own pattern.
     const dash = style.dashed
       ? { dash: style.dashLength * k, gap: style.dashGap * k, cap: round ? lineWidth : 0 }
       : undefined;
     for (const link of scene.links) {
-      const a = at.get(link.from);
-      const b = at.get(link.to);
-      if (!a || !b) continue;
-      const markup = linkMarkup(a, b, link.bend, style.linePath, style.lineRadius * k, {
-        trimFrom: stopAt(link.from),
-        trimTo: stopAt(link.to),
+      const e = ends(link);
+      if (!e) continue;
+      const markup = linkMarkup(e.a, e.b, link.bend, style.linePath, style.lineRadius * k, {
+        trimFrom: link.titleFrom ? titleStop(link.titleFrom) : stopAt(link.from),
+        trimTo: link.titleTo ? titleStop(link.titleTo) : stopAt(link.to),
+        fromCentre: link.titleFrom ? titleBox.get(link.titleFrom)!.c : undefined,
+        toCentre: link.titleTo ? titleBox.get(link.titleTo)!.c : undefined,
         dash,
       });
       if (markup) links.push(paint(markup, link.color ? `stroke="${escapeXml(link.color)}"` : ''));
@@ -175,22 +190,22 @@ export function render(scene: Scene, style: Style): string {
     // Merged and smooth: links become bars in the node colour.
     const halfWidth = Math.min((style.barWidth * k) / 2, innerSpec.half * BAR_LIMIT[style.nodeShape]);
     const fillet = style.joinStyle === 'smooth' ? style.smoothness * style.nodeSize * 1.5 * k : 0;
-    const endAt = (id: string, c: { x: number; y: number }): JoinEnd => {
+    const endAt = (id: string, c: Pt, titleId?: string): JoinEnd => {
+      if (titleId) return { ...titleBox.get(titleId)!, solid: true };
       const isSolid = solid.get(id) ?? true;
       return { c, solid: isSolid, spec: isSolid ? nodeSpec : innerSpec };
     };
     for (const link of scene.links) {
-      const a = at.get(link.from);
-      const b = at.get(link.to);
-      if (!a || !b) continue;
+      const e = ends(link);
+      if (!e) continue;
       const shapes = barMarkup(
-        a,
-        b,
+        e.a,
+        e.b,
         link.bend,
         style.linePath,
         style.lineRadius * k,
-        endAt(link.from, a),
-        endAt(link.to, b),
+        endAt(link.from, e.a, link.titleFrom),
+        endAt(link.to, e.b, link.titleTo),
         halfWidth,
         fillet,
       );
@@ -208,7 +223,7 @@ export function render(scene: Scene, style: Style): string {
   const clips: string[] = [];
   const patterns: string[] = [];
   scene.nodes.forEach((n, i) => {
-    if (titleNodes.has(n.id)) return;
+    if (n.hidden) return;
     const c = at.get(n.id)!;
     // Near a title shape, a node takes the offering colour.
     const color = n.color ? escapeXml(n.color) : '';
@@ -236,17 +251,8 @@ export function render(scene: Scene, style: Style): string {
     if (p.body) patterns.push(color ? `<g stroke="${color}">${p.body}</g>` : p.body);
   });
 
-  // ---- Title shapes (placeholder: a pill over the node, no text yet)
-  const { halfW, halfH } = titleSize(scene, style);
-  const titleShapes = scene.titles.map((t) => {
-    const c = at.get(t.nodeId)!;
-    const box = `x="${fmt(c.x - halfW * k)}" y="${fmt(c.y - halfH * k)}" width="${fmt(halfW * 2 * k)}" height="${fmt(halfH * 2 * k)}" rx="${fmt(halfH * k)}"`;
-    const color = escapeXml(t.color);
-    // Lead: solid colour. Included: a light tint, edged in the colour.
-    return t.state === 'lead'
-      ? `<rect ${box} fill="${color}"/>`
-      : `<rect ${box} fill="${lighten(t.color, 0.8)}" stroke="${color}" stroke-width="${fmt(Math.max(0.6, style.nodeSize * 0.15) * k)}"/>`;
-  });
+  // ---- Title shapes: a capsule with live text, so it stays editable in Figma.
+  const titleShapes = scene.titles.map((t) => titleMarkup(t, titleBox.get(t.id)!.c, k, palette));
 
   const ringColor = style.nodeStyle === 'outline' ? palette.node : palette.outline;
   const solidAttrs =
@@ -272,4 +278,36 @@ export function render(scene: Scene, style: Style): string {
     ...group('titles', '', titleShapes),
     `</svg>`,
   ].join('\n');
+}
+
+/** One title shape: a capsule and its text, grouped and named after the offering. */
+function titleMarkup(t: TitleShape, c: Pt, k: number, palette: Palette): string {
+  const halfW = t.halfW * k;
+  const halfH = t.halfH * k;
+  const size = t.fontSize * k;
+  const outline = t.outline
+    ? ` stroke="${escapeXml(t.outline)}" stroke-width="${fmt(Math.max(0.6, t.halfH * 0.08) * k)}"`
+    : '';
+  const capsule = `<rect x="${fmt(c.x - halfW)}" y="${fmt(c.y - halfH)}" width="${fmt(halfW * 2)}" height="${fmt(halfH * 2)}" rx="${fmt(halfH)}" fill="${escapeXml(t.fill)}"${outline}/>`;
+
+  const ink =
+    t.textColor === 'text'
+      ? palette.text
+      : t.textColor === 'offering' && t.state !== 'lead'
+        ? darken(t.color, 0.25)
+        : readableOn(t.fill);
+  const anchor = t.align === 'left' ? 'start' : t.align === 'right' ? 'end' : 'middle';
+  const x = t.align === 'left' ? c.x - halfW + t.padX * k : t.align === 'right' ? c.x + halfW - t.padX * k : c.x;
+  // Centre each line on its capitals: the baseline sits half a cap height below the line's middle.
+  const capHalf = (fontMetrics(t.font).capHeight * size) / 2;
+  const lineHeight = size * 1.25;
+  const baseline = (i: number) => c.y + (i - (t.lines.length - 1) / 2) * lineHeight + capHalf;
+  const attrs = `font-family="${escapeXml(FONT_STACK[t.font])}" font-size="${fmt(size)}" font-weight="${t.weight}" fill="${escapeXml(ink)}" text-anchor="${anchor}"`;
+  const text =
+    t.lines.length === 1
+      ? `<text x="${fmt(x)}" y="${fmt(baseline(0))}" ${attrs}>${escapeXml(t.lines[0])}</text>`
+      : `<text ${attrs}>${t.lines
+          .map((line, i) => `<tspan x="${fmt(x)}" y="${fmt(baseline(i))}">${escapeXml(line)}</tspan>`)
+          .join('')}</text>`;
+  return `<g id="title-${escapeXml(t.id)}">${capsule}${text}</g>`;
 }

@@ -15,7 +15,7 @@ import {
   shapeVertices,
   trimPath,
 } from './geometry';
-import type { LinePath } from './types';
+import type { LinePath, NodeShape } from './types';
 
 /**
  * Merged and smooth joins.
@@ -33,6 +33,7 @@ import type { LinePath } from './types';
  */
 
 export interface JoinEnd {
+  /** Centre of the outline (for a title shape, not where the link aims). */
   c: Pt;
   /** The outline the bar joins: the node edge, or the middle of its ring. */
   spec: ShapeSpec;
@@ -46,7 +47,7 @@ export interface BarShapes {
 }
 
 /** How wide a bar may be, as a share of the node's `half`, so its edges still meet the outline. */
-export const BAR_LIMIT: Record<ShapeSpec['shape'], number> = {
+export const BAR_LIMIT: Record<NodeShape, number> = {
   circle: 0.98,
   square: 0.98,
   rounded: 0.98,
@@ -69,11 +70,15 @@ export function barMarkup(
   fillet: number,
 ): BarShapes | null {
   const route = linkSegments(a, b, bend, mode, radius);
-  const visible = trimPath(route, { spec: endA.spec, c: a }, { spec: endB.spec, c: b });
+  const visible = trimPath(route, { spec: endA.spec, c: endA.c }, { spec: endB.spec, c: endB.c });
   if (!visible || !visible.length) return null;
 
   // Under a solid node the bar can run on to the centre; otherwise it stops at the outline.
-  const body = trimPath(route, endA.solid ? null : { spec: endA.spec, c: a }, endB.solid ? null : { spec: endB.spec, c: b });
+  const body = trimPath(
+    route,
+    endA.solid ? null : { spec: endA.spec, c: endA.c },
+    endB.solid ? null : { spec: endB.spec, c: endB.c },
+  );
   if (!body || !body.length) return null;
 
   const half = pathLength(visible) / 2;

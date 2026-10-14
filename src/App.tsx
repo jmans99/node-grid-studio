@@ -21,6 +21,8 @@ import { copyText, downloadBlob, downloadText } from './lib/browser';
 import { svgToPng } from './lib/png';
 import { ColorField } from './ui/ColorField';
 import { OfferingsPanel } from './ui/OfferingsPanel';
+import { TitlesPanel } from './ui/TitlesPanel';
+import { useTitleDrag } from './ui/useTitleDrag';
 import { NumberField } from './ui/NumberField';
 import { Section } from './ui/Section';
 import { Segmented } from './ui/Segmented';
@@ -78,7 +80,12 @@ export default function App() {
 
   // generate() only re-runs when a layout setting changes. render() is the one
   // drawing function, used by the preview and by every export.
-  const scene = useMemo(() => generate(params, offerings), [params, offerings]);
+  const nodeSize = style.nodeSize;
+  const blueBackground = style.backgroundMode === 'blue';
+  const scene = useMemo(
+    () => generate(params, offerings, { nodeSize, blueMode: blueBackground }),
+    [params, offerings, nodeSize, blueBackground],
+  );
   const svg = useMemo(() => render(scene, style), [scene, style]);
   const size = useMemo(() => measure(scene, style), [scene, style]);
   const { palette, transparent } = resolvePalette(style);
@@ -124,13 +131,17 @@ export default function App() {
   };
 
   const blueMode = style.backgroundMode === 'blue';
+  const setTitles = (fn: (t: Settings['offerings']['titles']) => Settings['offerings']['titles']) =>
+    setSettings((s) => ({ ...s, offerings: { ...s.offerings, titles: fn(s.offerings.titles) } }));
+  const titleDrag = useTitleDrag(scene, size, params.columns, params.rows, setTitles);
+  const suggestion = scene.fit?.suggestion;
   const fit = style.canvas.preset === 'fit';
   const hasOutline = style.nodeStyle !== 'filled';
   const plainJoin = style.joinStyle === 'plain';
   const hasPattern = style.fillPattern !== 'solid';
   const markedPattern = hasPattern && style.fillPattern !== 'empty';
   const linePattern = style.fillPattern === 'lines' || style.fillPattern === 'hatch';
-  const stageVars = { '--ratio': size.width / size.height } as CSSProperties;
+  const stageVars = { '--ratio': size.width / size.height, cursor: titleDrag.cursor } as CSSProperties;
 
   return (
     <div className="app">
@@ -139,9 +150,33 @@ export default function App() {
           <div
             className={`artboard${transparent ? ' transparent' : ''}`}
             style={stageVars}
+            {...titleDrag.handlers}
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         </div>
+        {scene.fit && (
+          <div className="fit-notice" role="status">
+            <span>
+              {scene.fit.placed} of {scene.fit.total} titles fit on this grid.{' '}
+              {suggestion
+                ? `Make the grid ${suggestion.columns} × ${suggestion.rows} to fit them all.`
+                : 'Even the largest grid (25 × 20) is too small. Try short names, smaller text or fewer offerings.'}
+            </span>
+            {suggestion && (
+              <button
+                className="primary"
+                onClick={() =>
+                  setSettings((s) => ({
+                    ...s,
+                    params: { ...s.params, columns: suggestion.columns, rows: suggestion.rows },
+                  }))
+                }
+              >
+                Use {suggestion.columns} × {suggestion.rows}
+              </button>
+            )}
+          </div>
+        )}
         <div className="toolbar">
           <div className="toolbar-actions">
             <button
@@ -172,7 +207,7 @@ export default function App() {
             <button onClick={() => setSettings(DEFAULT_SETTINGS)}>Reset settings</button>
           </div>
           <div className="toolbar-info" aria-live="polite">
-            {notice || `${scene.nodes.length} nodes · ${scene.links.length} links · ${fmt(size.width)} × ${fmt(size.height)}`}
+            {notice || `${scene.nodes.filter((n) => !n.hidden).length} nodes · ${scene.titles.length ? `${scene.titles.length} titles · ` : ''} ${scene.links.length} links · ${fmt(size.width)} × ${fmt(size.height)}`}
           </div>
         </div>
       </main>
@@ -185,6 +220,10 @@ export default function App() {
 
         <Section title="Offerings">
           <OfferingsPanel value={offerings} onChange={(o) => setSettings((s) => ({ ...s, offerings: o }))} />
+        </Section>
+
+        <Section title="Titles">
+          <TitlesPanel value={offerings.titles} onChange={(t) => setTitles(() => t)} />
         </Section>
 
         <Section title="Nodes">

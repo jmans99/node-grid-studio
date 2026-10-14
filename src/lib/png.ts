@@ -1,10 +1,13 @@
+import { withEmbeddedFonts } from './fonts';
+
 /** Largest side Chrome, Firefox and Safari will reliably draw on a canvas. */
 const MAX_SIDE = 16384;
 const MAX_PIXELS = 100_000_000;
 
 /**
  * Turn the SVG string into a PNG at `scale` times its size. Draws the same SVG
- * the preview shows, so the PNG always matches the picture.
+ * the preview shows, so the PNG always matches the picture. Title fonts are
+ * embedded first.
  */
 export async function svgToPng(svg: string, width: number, height: number, scale: number): Promise<Blob> {
   const w = Math.round(width * scale);
@@ -12,7 +15,8 @@ export async function svgToPng(svg: string, width: number, height: number, scale
   if (w > MAX_SIDE || h > MAX_SIDE || w * h > MAX_PIXELS) {
     throw new Error(`Too large for ${scale}x (${w} × ${h} px). Try a smaller scale or canvas.`);
   }
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  // Title text needs its fonts inside the SVG, or the image falls back to a default font.
+  const url = URL.createObjectURL(new Blob([await withEmbeddedFonts(svg)], { type: 'image/svg+xml;charset=utf-8' }));
   try {
     const image = new Image();
     image.decoding = 'sync';

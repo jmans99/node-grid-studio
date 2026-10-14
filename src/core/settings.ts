@@ -27,6 +27,11 @@ export const LIMITS = {
   smoothness: { min: 0, max: 1, step: 0.01 },
   shadeStrength: { min: 0, max: 1, step: 0.01 },
   spread: { min: 0, max: 3, step: 1 },
+  includedSpread: { min: 0, max: 1, step: 0.01 },
+  titleSize: { min: 2, max: 14, step: 0.1 },
+  leadScale: { min: 1, max: 2, step: 0.05 },
+  titlePadding: { min: 0, max: 8, step: 0.1 },
+  includedTint: { min: 0, max: 1, step: 0.01 },
   canvasSize: { min: 16, max: 8000, step: 1 },
 } as const;
 
