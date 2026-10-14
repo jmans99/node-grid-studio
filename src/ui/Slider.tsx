@@ -6,6 +6,8 @@ interface SliderProps {
   min: number;
   max: number;
   step: number;
+  /** Shown after the value, for example "°" or "%". */
+  unit?: string;
   onChange: (value: number) => void;
 }
 
@@ -16,13 +18,16 @@ function decimals(step: number): number {
   return dot === -1 ? 0 : text.length - dot - 1;
 }
 
-export function Slider({ label, value, min, max, step, onChange }: SliderProps) {
+export function Slider({ label, value, min, max, step, unit = '', onChange }: SliderProps) {
   const id = useId();
   return (
     <div className="field">
       <div className="field-head">
         <label htmlFor={id}>{label}</label>
-        <output htmlFor={id}>{value.toFixed(decimals(step))}</output>
+        <output htmlFor={id}>
+          {value.toFixed(decimals(step))}
+          {unit}
+        </output>
       </div>
       <input
         id={id}

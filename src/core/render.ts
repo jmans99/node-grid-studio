@@ -1,5 +1,7 @@
 import { escapeXml, fmt } from './format';
-import { linkMarkup, nodeMarkup } from './geometry';
+import { type ShapeSpec, insetSpec, linkMarkup, nodeMarkup } from './geometry';
+import { BAR_LIMIT, type JoinEnd, barMarkup } from './joins';
+import { patternMarkup } from './patterns';
 import { resolvePalette } from './settings';
 import type { Scene, Style } from './types';
 
@@ -92,71 +94,140 @@ export function render(scene: Scene, style: Style): string {
   const h = fmt(m.height);
   const at = new Map(scene.nodes.map((n) => [n.id, { x: n.x * k + m.offsetX, y: n.y * k + m.offsetY }] as const));
 
-  // Nodes are sized first, because links may need to stop at their edge.
+  // ---- Nodes: sized first, because links need to know where node edges are.
   const half = style.nodeSize * k;
-  const outline = style.nodeStyle === 'filled' ? 0 : Math.min(style.outlineWidth, style.nodeSize) * k;
+  const ringed = style.nodeStyle !== 'filled';
+  const outline = ringed ? Math.min(style.outlineWidth, style.nodeSize) * k : 0;
+  const nodeSpec: ShapeSpec = {
+    shape: style.nodeShape,
+    half,
+    corner: style.nodeShape === 'rounded' ? Math.min(style.cornerRadius * k, half) : 0,
+  };
+  // The middle of the ring when there is one, otherwise the node edge.
+  const innerSpec = insetSpec(nodeSpec, outline / 2);
 
-  // Links
-  const lineWidth = style.lineWidth * k;
-  const round = style.lineCap === 'round';
-  // Plain lines run centre to centre, hidden under filled nodes. Outline-only nodes
-  // would show them inside the ring, and dashes would start under the node, so in
-  // those cases each link is cut at the node edge. It stops on the middle of the ring
-  // (a little further out for round caps, which stick out past the line end) or, for
-  // a filled node, just inside the edge.
-  const trimmed = style.nodeStyle === 'outline' || style.dashed;
-  const trimHalf =
-    outline > 0 ? half - outline / 2 + (round ? lineWidth / 2 : 0) : half - Math.min(lineWidth / 2, half / 2);
-  const trim = trimmed
-    ? {
-        shape: style.nodeShape,
-        half: trimHalf,
-        corner: Math.max(Math.min(style.cornerRadius * k, half) - (half - trimHalf), 0),
-      }
-    : undefined;
-  // Dashes are measured as they look on screen. Each link fits its own pattern.
-  const dash = style.dashed
-    ? { dash: Math.max(4 * lineWidth, 3 * k), gap: Math.max(3 * lineWidth, 2 * k), cap: round ? lineWidth : 0 }
-    : undefined;
+  // A node is solid unless it has no fill (outline style) or it was given the pattern.
+  const fillsShown = style.nodeStyle !== 'outline';
+  const patterned = (pick: number) => fillsShown && style.fillPattern !== 'solid' && pick * 100 < style.patternMix;
+  const solid = new Map(scene.nodes.map((n) => [n.id, fillsShown && !patterned(n.pick)] as const));
+
+  // ---- Links
   const links: string[] = [];
-  for (const link of scene.links) {
-    const a = at.get(link.from);
-    const b = at.get(link.to);
-    if (!a || !b) continue;
-    const markup = linkMarkup(a, b, link.bend, style.linePath, style.lineRadius * k, trim, dash);
-    if (markup) links.push(markup);
+  const feet: string[] = [];
+  let linkAttrs: string[];
+  if (style.joinStyle === 'plain') {
+    const lineWidth = style.lineWidth * k;
+    const round = style.lineCap === 'round';
+    // A solid node hides a line that runs to its centre. Anything else would show
+    // the line inside, so the line stops at the ring's middle or the node edge
+    // (pulled out by half the width for round caps, which stick out past the end).
+    // Dashes stop just inside a solid node, so they start where the node ends.
+    const hollowStop = insetSpec(innerSpec, round ? -lineWidth / 2 : 0);
+    const solidStop = insetSpec(nodeSpec, Math.min(lineWidth / 2, half / 2));
+    const stopAt = (id: string) => (solid.get(id) ? (style.dashed ? solidStop : undefined) : hollowStop);
+    // Dashes are measured as they look on screen. Each link fits its own pattern.
+    const dash = style.dashed
+      ? { dash: style.dashLength * k, gap: style.dashGap * k, cap: round ? lineWidth : 0 }
+      : undefined;
+    for (const link of scene.links) {
+      const a = at.get(link.from);
+      const b = at.get(link.to);
+      if (!a || !b) continue;
+      const markup = linkMarkup(a, b, link.bend, style.linePath, style.lineRadius * k, {
+        trimFrom: stopAt(link.from),
+        trimTo: stopAt(link.to),
+        dash,
+      });
+      if (markup) links.push(markup);
+    }
+    linkAttrs = [
+      `fill="none"`,
+      `stroke="${escapeXml(palette.line)}"`,
+      `stroke-width="${fmt(lineWidth)}"`,
+      `stroke-linecap="${style.lineCap}"`,
+    ];
+  } else {
+    // Merged and smooth: links become bars in the node colour.
+    const halfWidth = Math.min((style.barWidth * k) / 2, innerSpec.half * BAR_LIMIT[style.nodeShape]);
+    const fillet = style.joinStyle === 'smooth' ? style.smoothness * style.nodeSize * 1.5 * k : 0;
+    const endAt = (id: string, c: { x: number; y: number }): JoinEnd => {
+      const isSolid = solid.get(id) ?? true;
+      return { c, solid: isSolid, spec: isSolid ? nodeSpec : innerSpec };
+    };
+    for (const link of scene.links) {
+      const a = at.get(link.from);
+      const b = at.get(link.to);
+      if (!a || !b) continue;
+      const shapes = barMarkup(
+        a,
+        b,
+        link.bend,
+        style.linePath,
+        style.lineRadius * k,
+        endAt(link.from, a),
+        endAt(link.to, b),
+        halfWidth,
+        fillet,
+      );
+      if (!shapes) continue;
+      links.push(shapes.bar);
+      feet.push(...shapes.feet);
+    }
+    linkAttrs = [`fill="none"`, `stroke="${escapeXml(palette.node)}"`, `stroke-width="${fmt(halfWidth * 2)}"`];
   }
-  const linkAttrs = [`fill="none"`, `stroke="${escapeXml(palette.line)}"`, `stroke-width="${fmt(lineWidth)}"`];
-  linkAttrs.push(`stroke-linecap="${style.lineCap}"`);
 
-  // Nodes
-  const nodes = scene.nodes.map((n) => {
-    const p = at.get(n.id)!;
-    return nodeMarkup({
-      shape: style.nodeShape,
-      cx: p.x,
-      cy: p.y,
-      half,
-      corner: style.cornerRadius * k,
-      outline,
+  // ---- Nodes, their patterns and outlines
+  const solidNodes: string[] = [];
+  const rings: string[] = [];
+  const clips: string[] = [];
+  const patterns: string[] = [];
+  scene.nodes.forEach((n, i) => {
+    const c = at.get(n.id)!;
+    const shape = nodeMarkup({ shape: style.nodeShape, cx: c.x, cy: c.y, half, corner: style.cornerRadius * k, outline });
+    if (solid.get(n.id)) {
+      solidNodes.push(shape);
+      return;
+    }
+    if (ringed) rings.push(shape);
+    if (!patterned(n.pick)) return;
+    const p = patternMarkup({
+      pattern: style.fillPattern,
+      spec: innerSpec,
+      c,
+      scale: k,
+      density: style.patternDensity,
+      size: style.patternSize,
+      angle: style.patternAngle,
+      seed: n.seed,
+      clipId: `ngs-clip-${i}`,
+      ringed,
+      color: palette.node,
     });
+    if (p.defs) clips.push(p.defs);
+    if (p.body) patterns.push(p.body);
   });
-  const nodeAttrs =
-    style.nodeStyle === 'filled'
-      ? [`fill="${escapeXml(palette.node)}"`]
-      : style.nodeStyle === 'outline'
-        ? [`fill="none"`, `stroke="${escapeXml(palette.node)}"`, `stroke-width="${fmt(outline)}"`]
-        : [`fill="${escapeXml(palette.node)}"`, `stroke="${escapeXml(palette.outline)}"`, `stroke-width="${fmt(outline)}"`];
+
+  const ringColor = style.nodeStyle === 'outline' ? palette.node : palette.outline;
+  const solidAttrs =
+    style.nodeStyle === 'both'
+      ? `fill="${escapeXml(palette.node)}" stroke="${escapeXml(palette.outline)}" stroke-width="${fmt(outline)}"`
+      : `fill="${escapeXml(palette.node)}"`;
+  const group = (id: string, attrs: string, items: string[]) =>
+    items.length ? [`<g id="${id}" ${attrs}>`, ...items, `</g>`] : [];
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
+    ...(clips.length ? [`<defs>`, ...clips, `</defs>`] : []),
     ...(transparent ? [] : [`<rect id="background" width="${w}" height="${h}" fill="${escapeXml(palette.background)}"/>`]),
-    `<g id="links" ${linkAttrs.join(' ')}>`,
-    ...links,
-    `</g>`,
-    `<g id="nodes" ${nodeAttrs.join(' ')}>`,
-    ...nodes,
-    `</g>`,
+    ...group('links', linkAttrs.join(' '), links),
+    ...group('joins', `fill="${escapeXml(palette.node)}"`, feet),
+    ...group('nodes', solidAttrs, solidNodes),
+    ...group(
+      'node-patterns',
+      `fill="none" stroke="${escapeXml(palette.node)}" stroke-width="${fmt(style.patternSize * k)}"`,
+      patterns,
+    ),
+    ...group('node-outlines', `fill="none" stroke="${escapeXml(ringColor)}" stroke-width="${fmt(outline)}"`, rings),
     `</svg>`,
   ].join('\n');
 }

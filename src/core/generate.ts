@@ -1,5 +1,5 @@
 import { fractalNoise2D } from './noise';
-import { randomAt } from './random';
+import { hashInts, randomAt } from './random';
 import type { Params, Scene, SceneLink, SceneNode } from './types';
 
 /** How fast the noise changes across the grid. Lower means smoother waves. */
@@ -37,6 +37,8 @@ export function generate(params: Params): Scene {
         gy,
         x: gx + dx * displacement,
         y: gy + dy * displacement,
+        seed: hashInts(seed, 9, col, row),
+        pick: randomAt(seed, 11, col, row),
       });
     }
   }

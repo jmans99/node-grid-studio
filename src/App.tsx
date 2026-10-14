@@ -6,6 +6,8 @@ import type {
   BackgroundMode,
   CanvasPreset,
   CanvasSettings,
+  FillPattern,
+  JoinStyle,
   LineCap,
   LinePath,
   NodeShape,
@@ -35,6 +37,19 @@ const NODE_STYLES: { value: NodeStyle; label: string }[] = [
   { value: 'filled', label: 'Filled' },
   { value: 'outline', label: 'Outline' },
   { value: 'both', label: 'Both' },
+];
+const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'empty', label: 'Empty' },
+  { value: 'dots', label: 'Dots' },
+  { value: 'lines', label: 'Lines' },
+  { value: 'hatch', label: 'Cross-hatch' },
+  { value: 'rings', label: 'Rings' },
+];
+const JOIN_STYLES: { value: JoinStyle; label: string }[] = [
+  { value: 'plain', label: 'Plain' },
+  { value: 'merged', label: 'Merged' },
+  { value: 'smooth', label: 'Smooth' },
 ];
 const LINE_PATHS: { value: LinePath; label: string }[] = [
   { value: 'straight', label: 'Straight' },
@@ -110,6 +125,10 @@ export default function App() {
   const blueMode = style.backgroundMode === 'blue';
   const fit = style.canvas.preset === 'fit';
   const hasOutline = style.nodeStyle !== 'filled';
+  const plainJoin = style.joinStyle === 'plain';
+  const hasPattern = style.fillPattern !== 'solid';
+  const markedPattern = hasPattern && style.fillPattern !== 'empty';
+  const linePattern = style.fillPattern === 'lines' || style.fillPattern === 'hatch';
   const stageVars = { '--ratio': size.width / size.height } as CSSProperties;
 
   return (
@@ -185,6 +204,48 @@ export default function App() {
           )}
         </Section>
 
+        <Section title="Fill">
+          <Segmented label="Fill pattern" value={style.fillPattern} options={FILL_PATTERNS} onChange={(v) => setStyle('fillPattern', v)} />
+          {style.nodeStyle === 'outline' && hasPattern && (
+            <p className="hint">Outline-only nodes have no fill. Set node style to filled or both to see the pattern.</p>
+          )}
+          {markedPattern && (
+            <>
+              <Slider
+                label="Pattern density"
+                value={style.patternDensity}
+                {...LIMITS.patternDensity}
+                onChange={(v) => setStyle('patternDensity', v)}
+              />
+              <Slider
+                label={style.fillPattern === 'dots' ? 'Dot size' : 'Line size'}
+                value={style.patternSize}
+                {...LIMITS.patternSize}
+                onChange={(v) => setStyle('patternSize', v)}
+              />
+            </>
+          )}
+          {linePattern && (
+            <Slider
+              label="Angle"
+              value={style.patternAngle}
+              {...LIMITS.patternAngle}
+              unit="°"
+              onChange={(v) => setStyle('patternAngle', v)}
+            />
+          )}
+          {hasPattern && (
+            <Slider
+              label="Nodes with pattern"
+              value={style.patternMix}
+              {...LIMITS.patternMix}
+              unit="%"
+              onChange={(v) => setStyle('patternMix', v)}
+            />
+          )}
+          {hasPattern && style.patternMix < 100 && <p className="hint">The other nodes stay solid.</p>}
+        </Section>
+
         <Section title="Connections">
           <Slider
             label="Connection density"
@@ -201,14 +262,46 @@ export default function App() {
               onChange={(v) => setStyle('lineRadius', v)}
             />
           )}
-          <Slider
-            label="Line thickness"
-            value={style.lineWidth}
-            {...LIMITS.lineWidth}
-            onChange={(v) => setStyle('lineWidth', v)}
-          />
-          <Segmented label="Line cap" value={style.lineCap} options={LINE_CAPS} onChange={(v) => setStyle('lineCap', v)} />
-          <Toggle label="Dashed lines" checked={style.dashed} onChange={(v) => setStyle('dashed', v)} />
+          {plainJoin ? (
+            <>
+              <Slider
+                label="Line thickness"
+                value={style.lineWidth}
+                {...LIMITS.lineWidth}
+                onChange={(v) => setStyle('lineWidth', v)}
+              />
+              <Segmented label="Line cap" value={style.lineCap} options={LINE_CAPS} onChange={(v) => setStyle('lineCap', v)} />
+              <Toggle label="Dashed lines" checked={style.dashed} onChange={(v) => setStyle('dashed', v)} />
+              {style.dashed && (
+                <>
+                  <Slider
+                    label="Dash length"
+                    value={style.dashLength}
+                    {...LIMITS.dashLength}
+                    onChange={(v) => setStyle('dashLength', v)}
+                  />
+                  <Slider label="Dash gap" value={style.dashGap} {...LIMITS.dashGap} onChange={(v) => setStyle('dashGap', v)} />
+                </>
+              )}
+            </>
+          ) : (
+            <p className="hint">With merged and smooth joins, links are bars in the node colour. Set their width under joins.</p>
+          )}
+        </Section>
+
+        <Section title="Joins">
+          <Segmented label="Join style" value={style.joinStyle} options={JOIN_STYLES} onChange={(v) => setStyle('joinStyle', v)} />
+          {!plainJoin && (
+            <Slider label="Bar width" value={style.barWidth} {...LIMITS.barWidth} onChange={(v) => setStyle('barWidth', v)} />
+          )}
+          {style.joinStyle === 'smooth' && (
+            <Slider
+              label="Smoothness"
+              value={style.smoothness}
+              {...LIMITS.smoothness}
+              onChange={(v) => setStyle('smoothness', v)}
+            />
+          )}
         </Section>
 
         <Section title="Grid">

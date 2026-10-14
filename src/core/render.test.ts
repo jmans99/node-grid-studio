@@ -83,7 +83,8 @@ describe('node shapes and styles', () => {
 
   it('outline nodes have no fill, and keep their outer size', () => {
     const svg = draw({ nodeStyle: 'outline', outlineWidth: 2, nodeSize: 5 });
-    expect(svg).toContain('<g id="nodes" fill="none" stroke="#16171A" stroke-width="2">');
+    expect(svg).toContain('<g id="node-outlines" fill="none" stroke="#16171A" stroke-width="2">');
+    expect(svg).not.toContain('id="nodes"');
     // Centre line of the ring is pulled in by half the thickness: r = 5 - 1.
     expect(svg).toContain('r="4"');
   });
@@ -133,16 +134,25 @@ describe('lines', () => {
     it('fit each link so it starts and ends on a dash', () => {
       for (const length of [10, 13.7, 20, 33, 80]) {
         const [d, g] = attrs(fitDash(length, { dash: 6, gap: 4.5, cap: 0 }));
-        const n = Math.max(2, Math.round((length + g) / (d + g)));
+        const n = Math.max(1, Math.round((length + g) / (d + g)));
         expect(n * d + (n - 1) * g).toBeCloseTo(length, 1);
       }
     });
 
-    it('always show a gap, even on a short link', () => {
-      const [d, g] = attrs(fitDash(8, { dash: 12, gap: 9, cap: 0 }));
-      expect(d).toBeLessThan(8 / 2);
-      expect(g).toBeGreaterThan(0);
-      expect(2 * d + g).toBeCloseTo(8, 1);
+    it('let a long dash win on a short link: one dash, no tiny stubs', () => {
+      const [d] = attrs(fitDash(8, { dash: 12, gap: 9, cap: 0 }));
+      expect(d).toBeCloseTo(8, 1);
+    });
+
+    it('keep two dashes on a short link when the dash is short enough', () => {
+      const [d, g] = attrs(fitDash(11, { dash: 4, gap: 3, cap: 0 }));
+      expect(2 * d + g).toBeCloseTo(11, 1);
+    });
+
+    it('follow the dash length and gap sliders', () => {
+      const short = draw({ dashed: true, dashLength: 1, dashGap: 1 }).match(/stroke-dasharray="([\d.]+)/)![1];
+      const long = draw({ dashed: true, dashLength: 6, dashGap: 1 }).match(/stroke-dasharray="([\d.]+)/)![1];
+      expect(Number(long)).toBeGreaterThan(Number(short));
     });
 
     it('keep the same look with round caps, which stretch dashes at both ends', () => {
@@ -150,7 +160,7 @@ describe('lines', () => {
       for (const length of [10, 25, 60]) {
         const [d, g] = attrs(fitDash(length, { dash: 6, gap: 4.5, cap }));
         // On screen a dash is d + cap long and a gap is g - cap.
-        const n = Math.max(2, Math.round((length + cap + g - cap) / (d + cap + g - cap)));
+        const n = Math.max(1, Math.round((length + cap + g - cap) / (d + cap + g - cap)));
         expect(n * d + (n - 1) * g).toBeCloseTo(length, 1);
         expect(g).toBeGreaterThan(cap);
       }
@@ -168,16 +178,16 @@ describe('lines', () => {
     const reach = (p: number[], c = A) => Math.hypot(p[0] - c.x, p[1] - c.y);
 
     it('stops a straight line at the edge of both nodes', () => {
-      expect(linkMarkup(A, { x: 20, y: 0 }, 'h', 'straight', 0, circle)).toBe('<line x1="5" y1="0" x2="15" y2="0"/>');
+      expect(linkMarkup(A, { x: 20, y: 0 }, 'h', 'straight', 0, { trimFrom: circle, trimTo: circle })).toBe('<line x1="5" y1="0" x2="15" y2="0"/>');
     });
 
     it('draws nothing when the nodes touch', () => {
-      expect(linkMarkup(A, { x: 8, y: 0 }, 'h', 'straight', 0, circle)).toBe('');
+      expect(linkMarkup(A, { x: 8, y: 0 }, 'h', 'straight', 0, { trimFrom: circle, trimTo: circle })).toBe('');
     });
 
     it('cuts curved and rounded elbow lines at the edge too', () => {
       for (const mode of ['curved', 'elbow'] as const) {
-        const m = linkMarkup(A, B, 'h', mode, 10, circle);
+        const m = linkMarkup(A, B, 'h', mode, 10, { trimFrom: circle, trimTo: circle });
         expect(reach(start(m))).toBeCloseTo(5, 1); // output is rounded to 2 decimals
         const end = m.match(/([\d.-]+) ([\d.-]+)"\/>$/)!.slice(1).map(Number);
         expect(reach(end, B)).toBeCloseTo(5, 1);

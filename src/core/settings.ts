@@ -16,6 +16,14 @@ export const LIMITS = {
   margin: { min: 0, max: 400, step: 1 },
   lineWidth: { min: 0.2, max: 6, step: 0.1 },
   lineRadius: { min: 0, max: 20, step: 0.5 },
+  dashLength: { min: 0.5, max: 30, step: 0.5 },
+  dashGap: { min: 0.5, max: 30, step: 0.5 },
+  patternDensity: { min: 0, max: 1, step: 0.01 },
+  patternSize: { min: 0.1, max: 3, step: 0.05 },
+  patternAngle: { min: 0, max: 180, step: 1 },
+  patternMix: { min: 0, max: 100, step: 1 },
+  barWidth: { min: 0.5, max: 20, step: 0.1 },
+  smoothness: { min: 0, max: 1, step: 0.01 },
   canvasSize: { min: 16, max: 8000, step: 1 },
 } as const;
 
@@ -48,8 +56,20 @@ export const DEFAULT_SETTINGS: Settings = {
     lineWidth: 1,
     lineCap: 'round',
     dashed: false,
+    dashLength: 4,
+    dashGap: 3,
     linePath: 'straight',
     lineRadius: 4,
+
+    fillPattern: 'solid',
+    patternDensity: 0.5,
+    patternSize: 0.6,
+    patternAngle: 45,
+    patternMix: 100,
+
+    joinStyle: 'plain',
+    barWidth: 4,
+    smoothness: 0.4,
 
     backgroundMode: 'paper',
     palettes: DEFAULT_PALETTES,

@@ -19,6 +19,8 @@ export type LineCap = 'round' | 'butt';
 export type BackgroundMode = 'paper' | 'navy' | 'blue' | 'transparent';
 /** Modes whose colours the user can edit. Blue only is always derived. */
 export type EditableMode = Exclude<BackgroundMode, 'blue'>;
+export type FillPattern = 'solid' | 'empty' | 'dots' | 'lines' | 'hatch' | 'rings';
+export type JoinStyle = 'plain' | 'merged' | 'smooth';
 export type CanvasPreset = 'fit' | '1:1' | '16:9' | '4:5' | 'a4' | 'custom';
 
 export interface Palette {
@@ -54,9 +56,30 @@ export interface Style {
   lineWidth: number;
   lineCap: LineCap;
   dashed: boolean;
+  /** Dash and gap length in units. Each link adjusts them slightly so it starts and ends on a dash. */
+  dashLength: number;
+  dashGap: number;
   linePath: LinePath;
   /** Rounds the bends of elbow lines, in units. */
   lineRadius: number;
+
+  /** What fills the inside of a node. Applies when the node style is filled or both. */
+  fillPattern: FillPattern;
+  /** 0 to 1: how close together the pattern marks are. */
+  patternDensity: number;
+  /** Pattern line thickness or dot width, in units. */
+  patternSize: number;
+  /** Pattern line angle in degrees. */
+  patternAngle: number;
+  /** 0 to 100: share of nodes that use the pattern. The rest stay solid. */
+  patternMix: number;
+
+  /** How a link meets a node. */
+  joinStyle: JoinStyle;
+  /** Bar width for merged and smooth joins, in units. */
+  barWidth: number;
+  /** 0 to 1: how far a smooth join flares into the node. */
+  smoothness: number;
 
   backgroundMode: BackgroundMode;
   palettes: Record<EditableMode, Palette>;
@@ -78,6 +101,10 @@ export interface SceneNode {
   /** Final position, after displacement. */
   x: number;
   y: number;
+  /** This node's own seed, for patterns like scattered dots. */
+  seed: number;
+  /** 0 to 1, fixed per node. Picks which nodes get the pattern when only some do. */
+  pick: number;
 }
 
 export interface SceneLink {
