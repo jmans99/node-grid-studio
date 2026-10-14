@@ -73,6 +73,23 @@ describe('offerings data', () => {
     expect(matchingPreset(updateOffering(o, 'research', { state: 'lead' }))).toBeUndefined();
   });
 
+  it('only counts a preset as active while the states still match it exactly', () => {
+    const start = defaultOfferings();
+    expect(matchingPreset(start)).toBeUndefined(); // everything off: no preset
+    const applied = applyPreset(start, preset('ict-regulator'));
+    expect(matchingPreset(applied)?.id).toBe('ict-regulator');
+    // Clear all, or undoing back to the start, matches nothing.
+    expect(matchingPreset({ ...applied, items: applied.items.map((i) => ({ ...i, state: 'off' as const })) })).toBeUndefined();
+    // Changing one offering breaks the match; changing it back restores it.
+    const changed = updateOffering(applied, 'research', { state: 'off' });
+    expect(matchingPreset(changed)).toBeUndefined();
+    expect(matchingPreset(updateOffering(changed, 'research', { state: 'included' }))?.id).toBe('ict-regulator');
+    // Adding an offering (it starts included) breaks every preset except full portfolio.
+    const added = addOffering(applied, 'finance', 'Blended finance', '', null);
+    expect(matchingPreset(added)).toBeUndefined();
+    expect(matchingPreset(applyPreset(added, preset('full-portfolio')))?.id).toBe('full-portfolio');
+  });
+
   it('cycles off, included, lead, off', () => {
     expect(cycleState('off')).toBe('included');
     expect(cycleState('included')).toBe('lead');
