@@ -157,10 +157,25 @@ export interface OfferingsSettings {
   titles: TitleSettings;
 }
 
+/**
+ * Changes made by hand on the canvas, kept on top of the generated picture.
+ * Nodes are named by grid cell ("col,row"), so edits survive a new seed.
+ */
+export interface Edits {
+  /** Nodes hidden by a click. */
+  hidden: string[];
+  /** Links added or removed by a click, as "a|b" with the two node ids sorted. */
+  linksAdded: string[];
+  linksRemoved: string[];
+  /** Nodes dragged by hand: how far from their generated spot, in units. */
+  moved: Record<string, { dx: number; dy: number }>;
+}
+
 export interface Settings {
   params: Params;
   style: Style;
   offerings: OfferingsSettings;
+  edits: Edits;
 }
 
 export interface SceneNode {
@@ -179,8 +194,12 @@ export interface SceneNode {
   pick: number;
   /** Offering colour, when the node is near a title shape. */
   color?: string;
-  /** Not drawn: a title shape sits in its place. Its position is where links aim. */
+  /** Not drawn: hidden by hand, or a title shape sits in its place (where links then aim). */
   hidden?: boolean;
+  /** Hidden by hand. The preview shows a faint ghost so it can be clicked back. */
+  userHidden?: boolean;
+  /** Moved by hand. */
+  moved?: boolean;
 }
 
 export interface SceneLink {

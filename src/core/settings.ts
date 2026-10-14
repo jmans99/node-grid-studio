@@ -1,4 +1,5 @@
 import { DEFAULT_PALETTES, bluePalette } from '../brand';
+import { emptyEdits } from './edits';
 import { defaultOfferings } from './offerings';
 import type { CanvasPreset, Palette, Settings, Style } from './types';
 
@@ -85,6 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
     canvas: { preset: 'fit', width: 1080, height: 1080, margin: 0 },
   },
   offerings: defaultOfferings(),
+  edits: emptyEdits(),
 };
 
 /** The colours actually used to draw, after the background mode is applied. */

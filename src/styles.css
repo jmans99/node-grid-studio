@@ -55,10 +55,48 @@ body,
   aspect-ratio: var(--ratio, 1);
 }
 
-.artboard svg {
+.artboard {
+  position: relative;
+  user-select: none;
+}
+
+.artboard-svg,
+.artboard-svg svg {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Preview-only marks for editing: never part of an export. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.overlay .ghost {
+  fill: none;
+  stroke: #8f8f88;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.overlay .hint {
+  fill: none;
+  stroke: #00aeef;
+  stroke-width: 2;
+}
+
+.overlay .hint.add {
+  stroke-dasharray: 4 3;
+}
+
+.overlay .hint.remove {
+  stroke: #e0444c;
+  stroke-dasharray: 4 3;
 }
 
 /* Only the preview shows this. The exported SVG has no background at all. */
@@ -553,4 +591,83 @@ input[type='range'] {
 
 .artboard {
   touch-action: none;
+}
+
+/* Saved setups */
+.save-row {
+  display: flex;
+  gap: 8px;
+}
+
+.save-row input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 5px 8px;
+  border: 1px solid #c9c9c3;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+}
+
+.saved-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.saved {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+
+.saved-thumb {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 4px;
+  text-align: left;
+  border-color: var(--line);
+}
+
+.saved-thumb img {
+  display: block;
+  width: 100%;
+  height: 84px;
+  object-fit: contain;
+  background: var(--stage);
+  border-radius: 4px;
+}
+
+.saved-thumb span {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button:not(.primary):disabled:hover {
+  background: transparent;
 }

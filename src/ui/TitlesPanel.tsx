@@ -35,12 +35,14 @@ const ALIGN: { value: TitleAlign; label: string }[] = [
 
 interface Props {
   value: TitleSettings;
-  onChange: (next: TitleSettings) => void;
+  /** `key` groups quick changes from one control into a single undo step. */
+  onChange: (next: TitleSettings, key?: string) => void;
 }
 
 /** How offerings appear as title shapes: names, room, placement and text. */
 export function TitlesPanel({ value, onChange }: Props) {
-  const set = <K extends keyof TitleSettings>(key: K, v: TitleSettings[K]) => onChange({ ...value, [key]: v });
+  const set = <K extends keyof TitleSettings>(key: K, v: TitleSettings[K]) =>
+    onChange({ ...value, [key]: v }, `titles:${String(key)}`);
   const moved = Object.keys(value.positions).length > 0;
   return (
     <>

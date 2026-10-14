@@ -3,8 +3,8 @@
 An internal design tool that makes a grid of nodes joined by lines, as SVG, for the
 UNICEF Digital Inclusion (DI) offerings visual. Everything runs in the browser.
 
-> Work in progress. Phases 1 to 4 are done (base generator; colour, style, canvas, export; node fills and joins;
-> offerings and title shapes). A full README comes at the end.
+> Work in progress. Phases 1 to 5 are done (base generator; colour, style, canvas, export; node fills and joins;
+> offerings and title shapes; click to edit and saving). A full README comes at the end.
 
 ## Run it
 
@@ -34,4 +34,7 @@ npm run build    # type check and production build
   bundled Manrope and Open Sans files by `scripts/font-metrics.py` (needs `pip install fonttools brotli`).
 - `src/lib/fonts.ts`: loads the title fonts in the app and embeds them in PNG exports. SVG exports keep plain,
   editable text.
+- `src/core/edits.ts`, `src/core/hit.ts`: hand edits on the canvas (hidden nodes, added or removed links, moved
+  nodes), and what a click lands on.
+- `src/core/share.ts`: the design as a short code in the page address (`#d=...`), used for links and saved setups.
 - `src/brand.ts`: the DI brand colours and the default colour palettes. Edit brand colours here.

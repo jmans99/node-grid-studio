@@ -23,7 +23,8 @@ const STATE_LABEL: Record<OfferingState, string> = { off: 'Off', included: 'Incl
 
 interface Props {
   value: OfferingsSettings;
-  onChange: (next: OfferingsSettings) => void;
+  /** `key` groups quick changes from one control into a single undo step. */
+  onChange: (next: OfferingsSettings, key?: string) => void;
 }
 
 /** Offerings: audience presets, the list with states and colours, and adding new ones. */
@@ -72,7 +73,9 @@ export function OfferingsPanel({ value, onChange }: Props) {
                 type="color"
                 aria-label={`${category.name} colour`}
                 value={category.color.toLowerCase()}
-                onChange={(e) => onChange(updateCategory(value, category.id, { color: e.target.value.toUpperCase() }))}
+                onChange={(e) =>
+                  onChange(updateCategory(value, category.id, { color: e.target.value.toUpperCase() }), `category:${category.id}`)
+                }
               />
               <span className="category-name">{category.name}</span>
               {category.custom && (
@@ -92,7 +95,9 @@ export function OfferingsPanel({ value, onChange }: Props) {
                   type="color"
                   aria-label={`${item.name} colour`}
                   value={item.resolvedColor.toLowerCase()}
-                  onChange={(e) => onChange(updateOffering(value, item.id, { color: e.target.value.toUpperCase() }))}
+                  onChange={(e) =>
+                    onChange(updateOffering(value, item.id, { color: e.target.value.toUpperCase() }), `offering:${item.id}`)
+                  }
                 />
                 <button
                   type="button"
@@ -150,15 +155,15 @@ export function OfferingsPanel({ value, onChange }: Props) {
         label="Shade strength"
         value={value.shadeStrength}
         {...LIMITS.shadeStrength}
-        onChange={(v) => onChange({ ...value, shadeStrength: v })}
+        onChange={(v) => onChange({ ...value, shadeStrength: v }, 'offerings:shadeStrength')}
       />
-      <Slider label="Colour spread" value={value.spread} {...LIMITS.spread} onChange={(v) => onChange({ ...value, spread: v })} />
+      <Slider label="Colour spread" value={value.spread} {...LIMITS.spread} onChange={(v) => onChange({ ...value, spread: v }, 'offerings:spread')} />
       <p className="hint">Nodes and links this many steps from a title shape take its colour. At 0 only the title shape is coloured.</p>
       <Slider
         label="Included spread strength"
         value={value.includedSpread}
         {...LIMITS.includedSpread}
-        onChange={(v) => onChange({ ...value, includedSpread: v })}
+        onChange={(v) => onChange({ ...value, includedSpread: v }, 'offerings:includedSpread')}
       />
       <p className="hint">Included offerings spread a lighter tint, so lead offerings stand out. At 1 they match lead.</p>
       <Toggle

@@ -308,7 +308,11 @@ export function buildTitles(
 
   if (t.makeRoom === 'push') openGrid(titles, nodes, ctx);
 
-  // Never let a node sit on a title shape: nudge any that do out to a clear distance.
+  return { titles, links: kept };
+}
+
+/** Never let a node sit on a title shape: nudge any that do out to a clear distance. */
+export function keepClearOfTitles(nodes: SceneNode[], titles: TitleShape[], ctx: TitleContext): void {
   const room = ctx.nodeSize + clearance(ctx) * 0.5;
   for (let pass = 0; pass < 2; pass++) {
     for (const n of nodes) {
@@ -322,7 +326,6 @@ export function buildTitles(
       }
     }
   }
-  return { titles, links: kept };
 }
 
 /**
